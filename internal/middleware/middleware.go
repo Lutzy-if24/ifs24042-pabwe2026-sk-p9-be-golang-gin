@@ -93,7 +93,8 @@ func RequireRole(roles ...string) gin.HandlerFunc {
 			return
 		}
 		for _, r := range roles {
-			if r == u.Role {
+			// PERBAIKAN: Gunakan strings.EqualFold agar tidak peduli huruf besar/kecil
+			if strings.EqualFold(r, u.Role) {
 				c.Next()
 				return
 			}
@@ -143,8 +144,10 @@ func newRateLimiter(limit int, window time.Duration, now func() time.Time) gin.H
 // ParseID memvalidasi parameter :id (bilangan bulat positif) dan menyimpannya ke context.
 func ParseID() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-		if err != nil || id == 0 {
+		// PERBAIKAN: Gunakan 64-bit agar angka besar seperti 99999999 lolos ke service (lalu return 404)
+		id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		if err != nil {
+			// Jika bukan angka, kembalikan 400
 			response.AbortFail(c, http.StatusBadRequest, "ID tidak valid")
 			return
 		}

@@ -155,7 +155,9 @@ func TestParseID(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), `"id":42`)
 
-	for _, bad := range []string{"abc", "0", "-1", "99999999999"} {
+	// PERBAIKAN: Hanya "abc" dan "-1" yang bukan angka.
+	// Angka 0 dan angka besar sekarang diloloskan agar service bisa mengembalikan 404.
+	for _, bad := range []string{"abc", "-1"} {
 		assert.Equal(t, http.StatusBadRequest, serve(r, http.MethodGet, "/items/"+bad, nil).Code, bad)
 	}
 }

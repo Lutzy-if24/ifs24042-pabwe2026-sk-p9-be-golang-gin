@@ -36,7 +36,7 @@ type AuthorResponse struct {
 // PostResponse adalah representasi artikel pada API.
 type PostResponse struct {
 	ID             uint            `json:"id"`
-	UserID         uint            `json:"user_id"` // <-- DITAMBAHKAN
+	UserID         uint            `json:"user_id,omitempty"` // <-- Diberi omitempty agar bisa disembunyikan
 	Title          string          `json:"title"`
 	Slug           string          `json:"slug"`
 	Category       string          `json:"category"`
@@ -53,7 +53,6 @@ type PostResponse struct {
 }
 
 // StatsResponse adalah ringkasan 3 kartu statistik penulis.
-// DIUBAH: Nama field JSON disesuaikan dengan keinginan grader.
 type StatsResponse struct {
 	TotalArticles int64 `json:"total_articles"`
 	TotalSelesai  int64 `json:"total_selesai"`
@@ -103,11 +102,11 @@ func Slugify(title string) string {
 	return slug
 }
 
-// ToResponse memetakan Post ke PostResponse. Konten disertakan hanya jika withContent true.
+// ToResponse memetakan Post ke PostResponse.
 func ToResponse(p *Post, withContent bool) PostResponse {
 	r := PostResponse{
 		ID:             p.ID,
-		UserID:         p.UserID, // <-- DITAMBAHKAN
+		UserID:         p.UserID, 
 		Title:          p.Title,
 		Slug:           p.Slug,
 		Category:       p.Category,
@@ -136,6 +135,26 @@ func ToResponses(posts []Post, withContent bool) []PostResponse {
 	out := make([]PostResponse, 0, len(posts))
 	for i := range posts {
 		out = append(out, ToResponse(&posts[i], withContent))
+	}
+	return out
+}
+
+// ==========================================
+// FUNGSI BARU KHUSUS UNTUK ENDPOINT PUBLIK
+// ==========================================
+
+// ToPublicResponse menyembunyikan UserID agar tidak tampil di endpoint publik.
+func ToPublicResponse(p *Post, withContent bool) PostResponse {
+	r := ToResponse(p, withContent)
+	r.UserID = 0 // Karena ada omitempty di struct, field ini akan hilang dari JSON
+	return r
+}
+
+// ToPublicResponses memetakan daftar Post untuk publik.
+func ToPublicResponses(posts []Post, withContent bool) []PostResponse {
+	out := make([]PostResponse, 0, len(posts))
+	for i := range posts {
+		out = append(out, ToPublicResponse(&posts[i], withContent))
 	}
 	return out
 }

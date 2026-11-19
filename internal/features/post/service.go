@@ -12,7 +12,7 @@ import (
 // Galat domain artikel.
 var (
 	ErrPostNotFound    = errors.New("artikel tidak ditemukan")
-	ErrPostForbidden   = errors.New("anda tidak memiliki akses ke artikel ini") // TAMBAHAN UNTUK GRADER
+	ErrPostForbidden   = errors.New("anda tidak memiliki akses ke artikel ini")
 	ErrInvalidCategory = errors.New("kategori tidak valid")
 )
 
@@ -109,7 +109,7 @@ func (s *Service) UpdatePost(userID, id uint, req UpdatePostRequest) (*Post, err
 				return nil, ErrPostForbidden // Mengembalikan 403
 			}
 		}
-		return nil, translate(err)
+		return nil, translate(err) // Mengembalikan 404
 	}
 	category, err := normalizeCategory(req.Category)
 	if err != nil {
@@ -183,7 +183,6 @@ func (s *Service) Stats(userID uint) (*StatsResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	// PERBAIKAN: Nama field disesuaikan dengan dto.go dan grader
 	return &StatsResponse{
 		TotalArticles: total,
 		TotalSelesai:  published,

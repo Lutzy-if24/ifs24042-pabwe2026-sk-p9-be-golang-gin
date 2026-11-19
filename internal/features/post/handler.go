@@ -42,7 +42,7 @@ func fail(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, ErrPostNotFound):
 		response.Fail(c, http.StatusNotFound, err.Error())
-	case errors.Is(err, ErrPostForbidden): // <-- TAMBAHKAN BARIS INI
+	case errors.Is(err, ErrPostForbidden):
 		response.Fail(c, http.StatusForbidden, err.Error())
 	case errors.Is(err, ErrInvalidCategory):
 		response.Fail(c, http.StatusBadRequest, err.Error())
@@ -68,7 +68,8 @@ func (h *Handler) PublicList(c *gin.Context) {
 		fail(c, err)
 		return
 	}
-	response.Success(c, http.StatusOK, "Daftar artikel berhasil diambil", ToResponses(posts, false))
+	// PERBAIKAN: Gunakan ToPublicResponses
+	response.Success(c, http.StatusOK, "Daftar artikel berhasil diambil", ToPublicResponses(posts, false))
 }
 
 // PublicDetail godoc: GET /api/public/posts/:slug
@@ -78,7 +79,8 @@ func (h *Handler) PublicDetail(c *gin.Context) {
 		fail(c, err)
 		return
 	}
-	response.Success(c, http.StatusOK, "Artikel berhasil diambil", ToResponse(p, true))
+	// PERBAIKAN: Gunakan ToPublicResponse
+	response.Success(c, http.StatusOK, "Artikel berhasil diambil", ToPublicResponse(p, true))
 }
 
 // Mine godoc: GET /api/posts
