@@ -1,0 +1,16 @@
+# Environment & secrets
+.env
+
+# Binary hasil build (wajib diawali "/" agar internal/server/ tidak ikut terabaikan)
+/server
+/server.exe
+/main
+/main.exe
+/app
+/app.exe
+
+# Coverage & IDE
+*.out
+coverage.html
+.idea/
+.vscode/
