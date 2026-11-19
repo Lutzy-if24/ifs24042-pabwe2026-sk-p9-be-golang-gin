@@ -47,26 +47,37 @@ type account struct {
 	username, email, password, role string
 }
 
-// Seed membuat akun bawaan (admin dari .env dan member/member) bila belum ada. Aman dijalankan berulang.
+// Seed membuat akun bawaan (admin dari .env dan member/member).
+// PERBAIKAN: Jika akun sudah ada, role dan password dipaksa untuk diperbarui (diperbaiki),
+// agar jika ada kesalahan role di database Render sebelumnya, akan tertimpa dengan yang benar.
 func Seed(db *gorm.DB, cfg *config.Config) error {
 	accounts := []account{
 		{cfg.AdminUsername, cfg.AdminUsername + "@delcom.org", cfg.AdminPassword, auth.RoleAdmin},
 		{"member", "member@delcom.org", "member", auth.RoleMember},
 	}
 	for _, a := range accounts {
-		var n int64
-		if err := db.Model(&auth.User{}).Where("username = ?", a.username).Count(&n).Error; err != nil {
-			return err
+		var u auth.User
+		// Cari user berdasarkan username
+		err := db.Where("username = ?", a.username).First(&u).Error
+		
+		hash, hashErr := auth.HashPassword(a.password)
+		if hashErr != nil {
+			return hashErr
 		}
-		if n > 0 {
+
+		if err == nil {
+			// JIKA USER SUDAH ADA: Paksa update role dan password agar benar
+			u.Role = a.role
+			u.Password = hash
+			if err := db.Save(&u).Error; err != nil {
+				return err
+			}
 			continue
 		}
-		hash, err := auth.HashPassword(a.password)
-		if err != nil {
-			return err
-		}
-		u := &auth.User{Username: a.username, Email: a.email, Password: hash, Role: a.role}
-		if err := db.Create(u).Error; err != nil {
+
+		// JIKA USER BELUM ADA: Buat baru
+		u = auth.User{Username: a.username, Email: a.email, Password: hash, Role: a.role}
+		if err := db.Create(&u).Error; err != nil {
 			return err
 		}
 	}
