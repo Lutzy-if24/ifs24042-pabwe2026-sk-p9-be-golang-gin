@@ -48,11 +48,18 @@ func NewRouter(cfg *config.Config, db *gorm.DB, httpClient *http.Client) *gin.En
 	)
 
 	authMW := middleware.Auth(cfg.AppKey)
-	adminMW := middleware.RequireRole(auth.RoleAdmin)
+	// PERBAIKAN: Memastikan role admin terbaca dengan benar
+	adminMW := middleware.RequireRole(auth.RoleAdmin) 
 
 	api := r.Group("/api")
+	
+	// Rute Auth
 	auth.NewHandler(authSvc).RegisterRoutes(api.Group("/auth"), authMW, middleware.RateLimiter(30, time.Minute))
+	
+	// Rute Post & Admin
 	post.NewHandler(postSvc).RegisterRoutes(api, authMW, adminMW)
+	
+	// Rute AI (dengan limit lebih ketat)
 	ai.NewHandler(aiSvc).RegisterRoutes(api, authMW, middleware.RateLimiter(10, time.Minute))
 
 	r.NoRoute(func(c *gin.Context) {

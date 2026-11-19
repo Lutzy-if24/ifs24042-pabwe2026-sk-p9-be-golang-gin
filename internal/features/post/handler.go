@@ -42,6 +42,8 @@ func fail(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, ErrPostNotFound):
 		response.Fail(c, http.StatusNotFound, err.Error())
+	case errors.Is(err, ErrPostForbidden): // <-- TAMBAHKAN BARIS INI
+		response.Fail(c, http.StatusForbidden, err.Error())
 	case errors.Is(err, ErrInvalidCategory):
 		response.Fail(c, http.StatusBadRequest, err.Error())
 	default:

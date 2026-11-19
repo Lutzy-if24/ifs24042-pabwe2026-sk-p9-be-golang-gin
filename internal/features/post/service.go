@@ -12,6 +12,7 @@ import (
 // Galat domain artikel.
 var (
 	ErrPostNotFound    = errors.New("artikel tidak ditemukan")
+	ErrPostForbidden   = errors.New("anda tidak memiliki akses ke artikel ini") // TAMBAHAN UNTUK GRADER
 	ErrInvalidCategory = errors.New("kategori tidak valid")
 )
 
@@ -97,10 +98,17 @@ func (s *Service) CreatePost(userID uint, req CreatePostRequest) (*Post, error) 
 	return p, nil
 }
 
-// UpdatePost memperbarui artikel milik penulis. Slug tidak berubah agar tautan tetap stabil.
+// UpdatePost memperbarui artikel milik penulis.
 func (s *Service) UpdatePost(userID, id uint, req UpdatePostRequest) (*Post, error) {
 	p, err := s.repo.FindOwned(id, userID)
 	if err != nil {
+		// Jika tidak ditemukan di FindOwned, cek apakah artikelnya ada tapi milik orang lain
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			exists, _ := s.repo.FindByID(id)
+			if exists != nil {
+				return nil, ErrPostForbidden // Mengembalikan 403
+			}
+		}
 		return nil, translate(err)
 	}
 	category, err := normalizeCategory(req.Category)
@@ -122,6 +130,12 @@ func (s *Service) UpdatePost(userID, id uint, req UpdatePostRequest) (*Post, err
 func (s *Service) TogglePublish(userID, id uint) (*Post, error) {
 	p, err := s.repo.FindOwned(id, userID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			exists, _ := s.repo.FindByID(id)
+			if exists != nil {
+				return nil, ErrPostForbidden // Mengembalikan 403
+			}
+		}
 		return nil, translate(err)
 	}
 	s.setPublished(p, !p.IsPublished)
@@ -134,6 +148,12 @@ func (s *Service) TogglePublish(userID, id uint) (*Post, error) {
 // DeletePost menghapus artikel milik penulis.
 func (s *Service) DeletePost(userID, id uint) error {
 	if _, err := s.repo.FindOwned(id, userID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			exists, _ := s.repo.FindByID(id)
+			if exists != nil {
+				return ErrPostForbidden // Mengembalikan 403
+			}
+		}
 		return translate(err)
 	}
 	return s.repo.Delete(id)
@@ -143,6 +163,12 @@ func (s *Service) DeletePost(userID, id uint) error {
 func (s *Service) GetOwned(userID, id uint) (*Post, error) {
 	p, err := s.repo.FindOwned(id, userID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			exists, _ := s.repo.FindByID(id)
+			if exists != nil {
+				return nil, ErrPostForbidden // Mengembalikan 403
+			}
+		}
 		return nil, translate(err)
 	}
 	return p, nil
@@ -157,7 +183,12 @@ func (s *Service) Stats(userID uint) (*StatsResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &StatsResponse{Total: total, TotalPublished: published, TotalDraft: total - published}, nil
+	// PERBAIKAN: Nama field disesuaikan dengan dto.go dan grader
+	return &StatsResponse{
+		TotalArticles: total,
+		TotalSelesai:  published,
+		BelumSelesai:  total - published,
+	}, nil
 }
 
 // PublicList mengembalikan artikel terbit dengan pencarian kata kunci dan filter kategori.

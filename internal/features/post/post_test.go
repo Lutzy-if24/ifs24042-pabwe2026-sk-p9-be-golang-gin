@@ -84,6 +84,13 @@ func (f failRepo) FindOwned(id, userID uint) (*Post, error) {
 	return f.Repository.FindOwned(id, userID)
 }
 
+func (f failRepo) FindByID(id uint) (*Post, error) {
+	if f.failOn == "FindByID" {
+		return nil, errBoom
+	}
+	return f.Repository.FindByID(id)
+}
+
 func (f failRepo) FindPublishedBySlug(slug string) (*Post, error) {
 	if f.failOn == "FindPublishedBySlug" {
 		return nil, errBoom
@@ -346,8 +353,10 @@ func TestUpdatePost(t *testing.T) {
 	assert.Equal(t, "Opini", updated.Category)
 	assert.Equal(t, "/img.png", updated.CoverImagePath)
 
+	// Error Forbidden (403) jika milik orang lain
 	_, err = svc.UpdatePost(other.ID, created.ID, UpdatePostRequest{Title: "x", Content: "y"})
-	assert.ErrorIs(t, err, ErrPostNotFound)
+	assert.ErrorIs(t, err, ErrPostForbidden)
+
 	_, err = svc.UpdatePost(u.ID, created.ID, UpdatePostRequest{Title: "x", Content: "y", Category: "Olahraga"})
 	assert.ErrorIs(t, err, ErrInvalidCategory)
 	_, err = failing(repo, "FindOwned").UpdatePost(u.ID, created.ID, UpdatePostRequest{Title: "x", Content: "y"})
@@ -373,7 +382,7 @@ func TestTogglePublish(t *testing.T) {
 	assert.Nil(t, off.PublishedAt)
 
 	_, err = svc.TogglePublish(other.ID, created.ID)
-	assert.ErrorIs(t, err, ErrPostNotFound)
+	assert.ErrorIs(t, err, ErrPostForbidden)
 	_, err = failing(repo, "Update").TogglePublish(u.ID, created.ID)
 	assert.ErrorIs(t, err, errBoom)
 }
@@ -388,9 +397,9 @@ func TestDeleteAndGetOwned(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Hapus", got.Title)
 	_, err = svc.GetOwned(other.ID, created.ID)
-	assert.ErrorIs(t, err, ErrPostNotFound)
+	assert.ErrorIs(t, err, ErrPostForbidden)
 
-	assert.ErrorIs(t, svc.DeletePost(other.ID, created.ID), ErrPostNotFound)
+	assert.ErrorIs(t, svc.DeletePost(other.ID, created.ID), ErrPostForbidden)
 	assert.ErrorIs(t, failing(repo, "Delete").DeletePost(u.ID, created.ID), errBoom)
 	require.NoError(t, svc.DeletePost(u.ID, created.ID))
 	_, err = svc.GetOwned(u.ID, created.ID)
@@ -408,7 +417,9 @@ func TestStatsAndLists(t *testing.T) {
 
 	stats, err := svc.Stats(u.ID)
 	require.NoError(t, err)
-	assert.Equal(t, StatsResponse{Total: 3, TotalPublished: 1, TotalDraft: 2}, *stats)
+	// PERBAIKAN: Nama field disesuaikan dengan dto.go baru
+	assert.Equal(t, StatsResponse{TotalArticles: 3, TotalSelesai: 1, BelumSelesai: 2}, *stats)
+	
 	_, err = failing(repo, "Stats").Stats(u.ID)
 	assert.ErrorIs(t, err, errBoom)
 
@@ -445,7 +456,6 @@ type envelope struct {
 	Data    json.RawMessage `json:"data"`
 }
 
-// newRouter menyuntikkan pengguna lewat header X-Test-User / X-Test-Role.
 func newRouter(svc *Service) *gin.Engine {
 	r := gin.New()
 	inject := func(c *gin.Context) {
@@ -509,25 +519,25 @@ func TestHandlerAuthorFlow(t *testing.T) {
 	assert.Contains(t, string(env.Data), "artikel-satu")
 	code, env = call(t, r, "GET", "/api/posts/stats", nil, bid, "member")
 	assert.Equal(t, http.StatusOK, code)
-	assert.Contains(t, string(env.Data), `"total_draft":1`)
+	// PERBAIKAN: Cari string "belum_selesai"
+	assert.Contains(t, string(env.Data), `"belum_selesai":1`)
 
 	code, env = call(t, r, "GET", "/api/posts/"+id, nil, bid, "member")
 	assert.Equal(t, http.StatusOK, code)
 	assert.Contains(t, string(env.Data), `"content":"isi"`)
 	code, _ = call(t, r, "GET", "/api/posts/"+id, nil, aid, "member")
-	assert.Equal(t, http.StatusNotFound, code)
+	assert.Equal(t, http.StatusForbidden, code) // PERBAIKAN: 403 Forbidden
 	code, _ = call(t, r, "GET", "/api/posts/abc", nil, bid, "member")
 	assert.Equal(t, http.StatusBadRequest, code)
 
 	code, _ = call(t, r, "PUT", "/api/posts/"+id, "{bad", bid, "member")
 	assert.Equal(t, http.StatusBadRequest, code)
 	code, _ = call(t, r, "PUT", "/api/posts/"+id, map[string]string{"title": "Baru", "content": "isi baru"}, aid, "member")
-	assert.Equal(t, http.StatusNotFound, code)
+	assert.Equal(t, http.StatusForbidden, code) // PERBAIKAN: 403 Forbidden
 	code, env = call(t, r, "PUT", "/api/posts/"+id, map[string]string{"title": "Judul Baru", "content": "isi baru", "category": "Opini"}, bid, "member")
 	assert.Equal(t, http.StatusOK, code)
 	assert.Contains(t, string(env.Data), "Judul Baru")
 
-	// belum terbit -> tidak tampil di publik
 	code, env = call(t, r, "GET", "/api/public/posts", nil, "", "")
 	assert.Equal(t, http.StatusOK, code)
 	assert.JSONEq(t, "[]", string(env.Data))
@@ -538,7 +548,7 @@ func TestHandlerAuthorFlow(t *testing.T) {
 	assert.Equal(t, http.StatusOK, code)
 	assert.Contains(t, string(env.Data), `"is_published":true`)
 	code, _ = call(t, r, "PATCH", "/api/posts/"+id+"/toggle-publish", nil, aid, "member")
-	assert.Equal(t, http.StatusNotFound, code)
+	assert.Equal(t, http.StatusForbidden, code) // PERBAIKAN: 403 Forbidden
 
 	code, env = call(t, r, "GET", "/api/public/posts?q=baru&category=Opini", nil, "", "")
 	assert.Equal(t, http.StatusOK, code)
@@ -550,7 +560,7 @@ func TestHandlerAuthorFlow(t *testing.T) {
 	assert.Contains(t, string(env.Data), `"content":"isi baru"`)
 
 	code, _ = call(t, r, "DELETE", "/api/posts/"+id, nil, aid, "member")
-	assert.Equal(t, http.StatusNotFound, code)
+	assert.Equal(t, http.StatusForbidden, code) // PERBAIKAN: 403 Forbidden
 	code, _ = call(t, r, "DELETE", "/api/posts/"+id, nil, bid, "member")
 	assert.Equal(t, http.StatusOK, code)
 }

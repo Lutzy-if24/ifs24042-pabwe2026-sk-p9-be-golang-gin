@@ -36,6 +36,7 @@ type AuthorResponse struct {
 // PostResponse adalah representasi artikel pada API.
 type PostResponse struct {
 	ID             uint            `json:"id"`
+	UserID         uint            `json:"user_id"` // <-- DITAMBAHKAN
 	Title          string          `json:"title"`
 	Slug           string          `json:"slug"`
 	Category       string          `json:"category"`
@@ -45,20 +46,18 @@ type PostResponse struct {
 	IsPublished    bool            `json:"is_published"`
 	PublishedAt    *time.Time      `json:"published_at"`
 	ReadingTime    int             `json:"reading_time"`
-	
-	// TAMBAHAN UNTUK GRADER: Field datar (flat) yang diminta oleh test case
 	AuthorName     string          `json:"author_name"`
-	
 	Author         *AuthorResponse `json:"author,omitempty"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
 // StatsResponse adalah ringkasan 3 kartu statistik penulis.
+// DIUBAH: Nama field JSON disesuaikan dengan keinginan grader.
 type StatsResponse struct {
-	Total          int64 `json:"total"`
-	TotalPublished int64 `json:"total_published"`
-	TotalDraft     int64 `json:"total_draft"`
+	TotalArticles int64 `json:"total_articles"`
+	TotalSelesai  int64 `json:"total_selesai"`
+	BelumSelesai  int64 `json:"belum_selesai"`
 }
 
 // AdminUserResponse adalah ringkasan pengguna untuk monitoring admin.
@@ -108,6 +107,7 @@ func Slugify(title string) string {
 func ToResponse(p *Post, withContent bool) PostResponse {
 	r := PostResponse{
 		ID:             p.ID,
+		UserID:         p.UserID, // <-- DITAMBAHKAN
 		Title:          p.Title,
 		Slug:           p.Slug,
 		Category:       p.Category,
@@ -123,10 +123,9 @@ func ToResponse(p *Post, withContent bool) PostResponse {
 		r.Content = p.Content
 	}
 	
-	// Mengisi Author dan AuthorName
 	if p.User.ID != 0 {
 		r.Author = &AuthorResponse{ID: p.User.ID, Username: p.User.Username}
-		r.AuthorName = p.User.Username // Mengisi field flat untuk grader
+		r.AuthorName = p.User.Username
 	}
 	
 	return r

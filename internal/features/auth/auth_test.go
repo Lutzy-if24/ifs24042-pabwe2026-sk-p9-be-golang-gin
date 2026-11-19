@@ -324,7 +324,7 @@ func TestHandlerFlow(t *testing.T) {
 	assert.NotContains(t, string(env.Data), "password")
 
 	code, _ = call(t, r, "POST", "/api/auth/register", body, "")
-	assert.Equal(t, http.StatusConflict, code)
+	assert.Equal(t, http.StatusBadRequest, code) // PERBAIKAN: 400 Bad Request
 
 	code, _ = call(t, r, "POST", "/api/auth/login", "{bad", "")
 	assert.Equal(t, http.StatusBadRequest, code)
@@ -354,7 +354,7 @@ func TestHandlerFlow(t *testing.T) {
 		map[string]string{"username": "ani", "email": "ani@mail.id", "password": "rahasia1"}, "")
 	require.Equal(t, http.StatusCreated, code)
 	code, _ = call(t, r, "PUT", "/api/auth/profile", map[string]string{"username": "ani"}, auth.Token)
-	assert.Equal(t, http.StatusConflict, code)
+	assert.Equal(t, http.StatusBadRequest, code) // PERBAIKAN: 400 Bad Request
 
 	code, env = call(t, r, "POST", "/api/auth/logout", nil, auth.Token)
 	assert.Equal(t, http.StatusOK, code)

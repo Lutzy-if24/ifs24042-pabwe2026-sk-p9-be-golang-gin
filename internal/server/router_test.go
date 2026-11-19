@@ -119,7 +119,7 @@ func TestEndToEndBlogFlow(t *testing.T) {
 
 	code, e = call(t, r, "GET", "/api/posts/stats", nil, penulis)
 	assert.Equal(t, http.StatusOK, code)
-	assert.Contains(t, string(e.Data), `"total_published":1`)
+	assert.Contains(t, string(e.Data), `"total_selesai":1`)
 
 	// AI generator terintegrasi Search Engine + OpenAI (keduanya mock)
 	code, e = call(t, r, "POST", "/api/posts/ai-generate",
