@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"log"
 	"time"
 
 	"app/internal/middleware"
@@ -92,11 +93,15 @@ func (s *Service) Login(req LoginRequest) (string, *User, error) {
 	u, err := s.repo.FindByLogin(req.Username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// DEBUG sementara: hapus setelah masalah admin selesai.
+			log.Printf("[DEBUG] login gagal: user tidak ditemukan, username=%q", req.Username)
 			return "", nil, ErrInvalidCredentials
 		}
 		return "", nil, err
 	}
 	if bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(req.Password)) != nil {
+		// DEBUG sementara: hapus setelah masalah admin selesai.
+		log.Printf("[DEBUG] login gagal: password salah, username=%q, panjang_password=%d", req.Username, len(req.Password))
 		return "", nil, ErrInvalidCredentials
 	}
 	token, err := s.GenerateToken(u)
