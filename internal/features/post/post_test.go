@@ -585,7 +585,7 @@ func TestHandlerAdmin(t *testing.T) {
 
 	code, env := call(t, r, "GET", "/api/admin/users", nil, "1", "admin")
 	assert.Equal(t, http.StatusOK, code)
-	assert.Contains(t, string(env.Data), `"total_posts":1`)
+	assert.Contains(t, string(env.Data), `"total_articles":1`)
 	code, env = call(t, r, "GET", "/api/admin/posts", nil, "1", "admin")
 	assert.Equal(t, http.StatusOK, code)
 	assert.Contains(t, string(env.Data), "milik-budi")

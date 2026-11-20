@@ -1,6 +1,7 @@
 package database
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -91,5 +92,18 @@ func TestSeedErrors(t *testing.T) {
 		require.NoError(t, Migrate(db))
 		require.NoError(t, db.Create(&auth.User{Username: "orang-lain", Email: "member@delcom.org", Password: "x"}).Error)
 		assert.Error(t, Seed(db, testConfig()))
+	})
+
+	t.Run("gagal memperbarui akun yang sudah ada", func(t *testing.T) {
+		db := memDB(t)
+		require.NoError(t, Migrate(db))
+		require.NoError(t, Seed(db, testConfig())) // akun sudah ada
+
+		require.NoError(t, db.Callback().Update().Before("gorm:update").
+			Register("test:force_update_error", func(tx *gorm.DB) {
+				_ = tx.AddError(errors.New("update diblokir"))
+			}))
+
+		assert.Error(t, Seed(db, testConfig())) // jalur db.Save() gagal
 	})
 }
