@@ -3,6 +3,7 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -93,12 +94,13 @@ func RequireRole(roles ...string) gin.HandlerFunc {
 			return
 		}
 		for _, r := range roles {
-			// PERBAIKAN: Gunakan strings.EqualFold agar tidak peduli huruf besar/kecil
 			if strings.EqualFold(r, u.Role) {
 				c.Next()
 				return
 			}
 		}
+		// DEBUG sementara: hapus setelah masalah admin selesai.
+		log.Printf("[DEBUG] akses ditolak (403): path=%s user_id=%d username=%q role=%q", c.Request.URL.Path, u.ID, u.Username, u.Role)
 		response.AbortFail(c, http.StatusForbidden, "Anda tidak memiliki akses ke sumber daya ini")
 	}
 }
@@ -144,10 +146,8 @@ func newRateLimiter(limit int, window time.Duration, now func() time.Time) gin.H
 // ParseID memvalidasi parameter :id (bilangan bulat positif) dan menyimpannya ke context.
 func ParseID() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// PERBAIKAN: Gunakan 64-bit agar angka besar seperti 99999999 lolos ke service (lalu return 404)
 		id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 		if err != nil {
-			// Jika bukan angka, kembalikan 400
 			response.AbortFail(c, http.StatusBadRequest, "ID tidak valid")
 			return
 		}
