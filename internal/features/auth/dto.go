@@ -3,10 +3,13 @@ package auth
 import "time"
 
 // RegisterRequest adalah payload registrasi penulis baru.
+// Role bersifat opsional: hanya "admin" atau "member" yang diterima,
+// nilai lain (atau kosong) dipaksa menjadi "member" di service.
 type RegisterRequest struct {
 	Username string `json:"username" binding:"required,min=3,max=50"`
 	Email    string `json:"email" binding:"required,email,max=255"`
 	Password string `json:"password" binding:"required,min=6,max=72"`
+	Role     string `json:"role"`
 }
 
 // LoginRequest adalah payload login. Username boleh berisi username maupun email.

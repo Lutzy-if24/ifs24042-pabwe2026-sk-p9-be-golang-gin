@@ -2,7 +2,7 @@ package auth
 
 import (
 	"errors"
-	"log"
+	"strings"
 	"time"
 
 	"app/internal/middleware"
@@ -35,6 +35,14 @@ func translate(err error) error {
 	return err
 }
 
+// normalizeRole hanya menerima "admin" atau "member"; selain itu dipaksa "member".
+func normalizeRole(role string) string {
+	if strings.EqualFold(strings.TrimSpace(role), RoleAdmin) {
+		return RoleAdmin
+	}
+	return RoleMember
+}
+
 // Service berisi logika bisnis autentikasi.
 type Service struct {
 	repo   Repository
@@ -53,7 +61,8 @@ func NewService(repo Repository, secret string, ttl time.Duration) *Service {
 	}
 }
 
-// Register mendaftarkan penulis baru dengan role member.
+// Register mendaftarkan penulis baru. Role "admin" atau "member" diterima,
+// nilai lain atau kosong dipaksa menjadi "member".
 func (s *Service) Register(req RegisterRequest) (*User, error) {
 	exists, err := s.repo.Exists(req.Username, req.Email, 0)
 	if err != nil {
@@ -66,7 +75,7 @@ func (s *Service) Register(req RegisterRequest) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	u := &User{Username: req.Username, Email: req.Email, Password: hash, Role: RoleMember}
+	u := &User{Username: req.Username, Email: req.Email, Password: hash, Role: normalizeRole(req.Role)}
 	if err := s.repo.Create(u); err != nil {
 		return nil, err
 	}
@@ -93,15 +102,11 @@ func (s *Service) Login(req LoginRequest) (string, *User, error) {
 	u, err := s.repo.FindByLogin(req.Username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// DEBUG sementara: hapus setelah masalah admin selesai.
-			log.Printf("[DEBUG] login gagal: user tidak ditemukan, username=%q", req.Username)
 			return "", nil, ErrInvalidCredentials
 		}
 		return "", nil, err
 	}
 	if bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(req.Password)) != nil {
-		// DEBUG sementara: hapus setelah masalah admin selesai.
-		log.Printf("[DEBUG] login gagal: password salah, username=%q, panjang_password=%d", req.Username, len(req.Password))
 		return "", nil, ErrInvalidCredentials
 	}
 	token, err := s.GenerateToken(u)
