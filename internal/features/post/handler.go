@@ -68,7 +68,6 @@ func (h *Handler) PublicList(c *gin.Context) {
 		fail(c, err)
 		return
 	}
-	// PERBAIKAN: Gunakan ToPublicResponses
 	response.Success(c, http.StatusOK, "Daftar artikel berhasil diambil", ToPublicResponses(posts, false))
 }
 
@@ -79,7 +78,6 @@ func (h *Handler) PublicDetail(c *gin.Context) {
 		fail(c, err)
 		return
 	}
-	// PERBAIKAN: Gunakan ToPublicResponse
 	response.Success(c, http.StatusOK, "Artikel berhasil diambil", ToPublicResponse(p, true))
 }
 
@@ -130,12 +128,21 @@ func (h *Handler) Create(c *gin.Context) {
 
 // Update godoc: PUT /api/posts/:id
 func (h *Handler) Update(c *gin.Context) {
+	userID := currentUserID(c)
+	id := middleware.ParamID(c)
+
+	// Cek keberadaan & kepemilikan dulu: 404 / 403 harus menang atas validasi body (400).
+	if _, err := h.svc.GetOwned(userID, id); err != nil {
+		fail(c, err)
+		return
+	}
+
 	var req UpdatePostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BindError(c, err)
 		return
 	}
-	p, err := h.svc.UpdatePost(currentUserID(c), middleware.ParamID(c), req)
+	p, err := h.svc.UpdatePost(userID, id, req)
 	if err != nil {
 		fail(c, err)
 		return
