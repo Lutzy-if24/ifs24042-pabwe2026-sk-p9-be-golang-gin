@@ -284,8 +284,7 @@ type envelope struct {
 
 func newRouter(svc *Service) *gin.Engine {
 	r := gin.New()
-	noop := func(c *gin.Context) { c.Next() }
-	NewHandler(svc).RegisterRoutes(r.Group("/api/auth"), middleware.Auth("secret"), noop)
+	NewHandler(svc).RegisterRoutes(r.Group("/api/auth"), middleware.Auth("secret"))
 	return r
 }
 
@@ -377,4 +376,23 @@ func TestHandlerFlow(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, code)
 	code, _ = call(t, r, "PUT", "/api/auth/profile", map[string]string{"username": "zzz"}, auth.Token)
 	assert.Equal(t, http.StatusInternalServerError, code)
+}
+func TestRegisterReturnsTokenAndHandlesSigningFailure(t *testing.T) {
+	svc, _, _ := newService(t)
+	r := newRouter(svc)
+
+	code, env := call(t, r, "POST", "/api/auth/register",
+		map[string]string{"username": "budi", "email": "budi@mail.id", "password": "rahasia1"}, "")
+	require.Equal(t, http.StatusCreated, code)
+	var data AuthResponse
+	require.NoError(t, json.Unmarshal(env.Data, &data))
+	assert.NotEmpty(t, data.Token)
+	assert.Equal(t, "budi", data.User.Username)
+
+	// gagal menandatangani token -> 500
+	svc.sign = func(*jwt.Token, []byte) (string, error) { return "", errBoom }
+	code, env = call(t, r, "POST", "/api/auth/register",
+		map[string]string{"username": "ani", "email": "ani@mail.id", "password": "rahasia1"}, "")
+	assert.Equal(t, http.StatusInternalServerError, code)
+	assert.Equal(t, "error", env.Status)
 }

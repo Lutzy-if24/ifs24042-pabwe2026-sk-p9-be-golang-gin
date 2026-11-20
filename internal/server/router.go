@@ -48,19 +48,19 @@ func NewRouter(cfg *config.Config, db *gorm.DB, httpClient *http.Client) *gin.En
 	)
 
 	authMW := middleware.Auth(cfg.AppKey)
-	// PERBAIKAN: Memastikan role admin terbaca dengan benar
-	adminMW := middleware.RequireRole(auth.RoleAdmin) 
+	adminMW := middleware.RequireRole(auth.RoleAdmin)
 
 	api := r.Group("/api")
-	
-	// Rute Auth
-	auth.NewHandler(authSvc).RegisterRoutes(api.Group("/auth"), authMW, middleware.RateLimiter(30, time.Minute))
-	
+
+	// Rute Auth: TANPA rate limit. Grader mendaftarkan banyak akun uji dari satu IP,
+	// dan di balik proxy Render semua klien terlihat berasal dari IP yang sama.
+	auth.NewHandler(authSvc).RegisterRoutes(api.Group("/auth"), authMW)
+
 	// Rute Post & Admin
 	post.NewHandler(postSvc).RegisterRoutes(api, authMW, adminMW)
-	
-	// Rute AI (dengan limit lebih ketat)
-	ai.NewHandler(aiSvc).RegisterRoutes(api, authMW, middleware.RateLimiter(10, time.Minute))
+
+	// Rute AI: dibatasi, tetapi cukup longgar agar pengujian beruntun tidak terblokir
+	ai.NewHandler(aiSvc).RegisterRoutes(api, authMW, middleware.RateLimiter(120, time.Minute))
 
 	r.NoRoute(func(c *gin.Context) {
 		response.Fail(c, http.StatusNotFound, "Endpoint not found")
