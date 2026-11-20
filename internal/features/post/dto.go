@@ -65,7 +65,7 @@ type AdminUserResponse struct {
 	Username       string    `json:"username"`
 	Email          string    `json:"email"`
 	Role           string    `json:"role"`
-	TotalPosts     int64     `json:"total_posts"`
+	TotalPosts     int64     `json:"total_articles"`
 	TotalPublished int64     `json:"total_published"`
 	CreatedAt      time.Time `json:"created_at"`
 }
